@@ -93,6 +93,8 @@ projects.each do |project|
   # Get all dirnames that have dist or public in their names
   linked_dirs.reject! { |dir| !dir[/^public\/|^dist\//] }
 
+  linked_dirs << 'node_modules'
+
   if !linked_dirs.empty?
     linked_dirs.each do |dir|
       dirname = options[:origin] + project + '/' + dir
