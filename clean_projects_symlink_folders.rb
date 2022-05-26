@@ -48,6 +48,8 @@ end
 # Get root of projects folders
 # Foreach project
 directories_to_delete = []
+files_to_delete = []
+
 projects = Dir.entries(options[:origin]).select { |entry| File.directory?(File.join(options[:origin], entry)) && !(entry == '.' || entry == '..') }
 puts "Found #{projects.length} projects" if !options[:quiet]
 projects.each do |project|
@@ -94,6 +96,10 @@ projects.each do |project|
   linked_dirs.reject! { |dir| !dir[/^public\/|^dist\//] }
 
   linked_dirs << 'node_modules'
+  linked_dirs << 'tmp/cache'
+
+  logs = Dir.glob(File.join(options[:origin], project, '**', '*.log'))
+  files_to_delete += logs if logs.length > 0
 
   if !linked_dirs.empty?
     linked_dirs.each do |dir|
@@ -117,12 +123,18 @@ if !options[:quiet]
   directories_to_delete.each do |dir|
     puts `du -s #{dir}`
   end
+
+  puts "These #{files_to_delete.length} files have been found and could be deleted : "
+  puts "File name"
+  files_to_delete.each do |fname|
+    puts fname.inspect
+  end
 end
 
 # Ask user if he wants to delete them
 answer = false
 if !options[:force_yes]
-  puts "Do you want to delete these #{directories_to_delete.length} folders and all their contents permanently? (Y/n)"
+  puts "Do you want to delete these #{directories_to_delete.length} folders and all their contents and #{files_to_delete.length} files permanently? (Y/n)"
   input = gets.chomp
   if ['Y', 'Yes', 'YES'].include?(input)
     answer = true
@@ -141,6 +153,12 @@ end
 directories_to_delete.each do |dir|
   if !system("rm -rf #{dir}")
     puts "Failed to remove folder #{dir}"
+  end
+end
+
+files_to_delete.each do |fname|
+  if !system("rm -f #{fname}")
+    puts "Failed to remove file #{fname}"
   end
 end
 
