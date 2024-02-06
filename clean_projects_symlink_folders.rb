@@ -49,10 +49,12 @@ end
 # Foreach project
 directories_to_delete = []
 files_to_delete = []
+to_exclude = ['.', '..', 'mln_code']
 
-projects = Dir.entries(options[:origin]).select { |entry| File.directory?(File.join(options[:origin], entry)) && !(entry == '.' || entry == '..') }
+projects = Dir.entries(options[:origin]).select { |entry| File.directory?(File.join(options[:origin], entry)) && !to_exclude.include?(entry) }
 puts "Found #{projects.length} projects" if !options[:quiet]
 projects.each do |project|
+  # puts "Project : #{project}"
   # Find the deploy.rb file
   # Other possible way :  Dir["#{options[:origin] + project}/**/deploy.rb"]
   # Will find more results but will be slower
@@ -61,6 +63,14 @@ projects.each do |project|
   elsif File.exists?("#{options[:origin] + project}/deploy.rb")
     deploy_file_path = "#{options[:origin] + project}/deploy.rb"
   else
+
+    # Find subprojects
+    Dir["#{options[:origin] + project}/**/config/deploy.rb"].each do |file|
+      new_project = file.gsub("/config/deploy.rb", "").gsub(options[:origin], "")
+      # puts "adding project #{new_project}"
+      projects << new_project
+    end
+    # puts "Skipping #{project}"
     next
   end
   # Get the line of linked_dirs from the config/deploy.rb from the root folder
@@ -82,15 +92,17 @@ projects.each do |project|
   linked_dirs_line = linked_dirs_line[regex]&.gsub(/\n+/, ' ')&.gsub(/ {2,}/, ' ')
 
   if !linked_dirs_line
+    # puts "Cannot find linked_dirs line, skipping"
     next
   end
   # Make the array from the string
   # Yes, I know, that's dangerous.
   linked_dirs = eval(linked_dirs_line)
 
-  if linked_dirs.empty?
-    next
-  end
+  # if linked_dirs.empty?
+    # puts "No linked dirs"
+    # next
+  # end
 
   # Get all dirnames that have dist or public in their names
   linked_dirs.reject! { |dir| !dir[/^public\/|^dist\//] }
